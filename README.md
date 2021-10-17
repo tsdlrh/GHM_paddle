@@ -29,7 +29,7 @@
 
 ####(1) GHM-C Loss
 对于一个候选框，它的真实便签为p*∈{0,1}，预测的值为p∈[0,1],采用二元交叉熵损失函数：
-
+<img src="https://github.com/tsdlrh/Blog_image/blob/master/%E7%AE%A1%E7%90%86%E5%91%98%E7%99%BB%E5%BD%95/1.JPG" width="200px">
 假设x为模型输出，p=sigmodi(x),那么上述的交叉熵损失对于x的导数为：
 
 那么梯度的模值定义为：
