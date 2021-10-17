@@ -85,18 +85,18 @@ class BBoxTransform(nn.Layer):
     def __init__(self, mean=None, std=None):
         super(BBoxTransform, self).__init__()
         if mean is None:
-            if paddle.cuda.is_available():
-                self.mean = paddle.from_numpy(np.array([0, 0, 0, 0]).astype(np.float32)).cuda()
+            if paddle.fluid.is_compiled_with_cuda():
+                self.mean = paddle.fluid.dygraph.to_variable(np.array([0, 0, 0, 0]).astype(np.float32)).cuda()
             else:
-                self.mean = paddle.from_numpy(np.array([0, 0, 0, 0]).astype(np.float32))
+                self.mean = paddle.fluid.dygraph.to_variable(np.array([0, 0, 0, 0]).astype(np.float32))
 
         else:
             self.mean = mean
         if std is None:
-            if paddle.cuda.is_available():
-                self.std = paddle.from_numpy(np.array([0.1, 0.1, 0.2, 0.2]).astype(np.float32)).cuda()
+            if paddle.fluid.is_compiled_with_cuda():
+                self.std = paddle.fluid.dygraph.to_variable(np.array([0.1, 0.1, 0.2, 0.2]).astype(np.float32)).cuda()
             else:
-                self.std = paddle.from_numpy(np.array([0.1, 0.1, 0.2, 0.2]).astype(np.float32))
+                self.std = paddle.fluid.dygraph.to_variable(np.array([0.1, 0.1, 0.2, 0.2]).astype(np.float32))
         else:
             self.std = std
 
@@ -135,10 +135,10 @@ class ClipBoxes(nn.Layer):
     def forward(self, boxes, img):
         batch_size, num_channels, height, width = img.shape
 
-        boxes[:, :, 0] = paddle.clamp(boxes[:, :, 0], min=0)
-        boxes[:, :, 1] = paddle.clamp(boxes[:, :, 1], min=0)
+        boxes[:, :, 0] = paddle.clip(boxes[:, :, 0], min=0)
+        boxes[:, :, 1] = paddle.clip(boxes[:, :, 1], min=0)
 
-        boxes[:, :, 2] = paddle.clamp(boxes[:, :, 2], max=width)
-        boxes[:, :, 3] = paddle.clamp(boxes[:, :, 3], max=height)
+        boxes[:, :, 2] = paddle.clip(boxes[:, :, 2], max=width)
+        boxes[:, :, 3] = paddle.clip(boxes[:, :, 3], max=height)
 
         return boxes
