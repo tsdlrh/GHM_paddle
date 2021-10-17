@@ -9,12 +9,12 @@ def calc_iou(a, b):
     iw = paddle.min(paddle.unsqueeze(a[:, 2], dim=1), b[:, 2]) - paddle.max(paddle.unsqueeze(a[:, 0], 1), b[:, 0])
     ih = paddle.min(paddle.unsqueeze(a[:, 3], dim=1), b[:, 3]) - paddle.max(paddle.unsqueeze(a[:, 1], 1), b[:, 1])
 
-    iw = paddle.clamp(iw, min=0)
-    ih = paddle.clamp(ih, min=0)
+    iw = paddle.clip(iw, min=0)
+    ih = paddle.clip(ih, min=0)
 
     ua = paddle.unsqueeze((a[:, 2] - a[:, 0]) * (a[:, 3] - a[:, 1]), dim=1) + area - iw * ih
 
-    ua = paddle.clamp(ua, min=1e-8)
+    ua = paddle.clip(ua, min=1e-8)
 
     intersection = iw * ih
 
@@ -48,10 +48,10 @@ class FocalLoss(nn.Layer):
             bbox_annotation = annotations[j, :, :]
             bbox_annotation = bbox_annotation[bbox_annotation[:, 4] != -1]
 
-            classification = paddle.clamp(classification, 1e-4, 1.0 - 1e-4)
+            classification = paddle.clip(classification, 1e-4, 1.0 - 1e-4)
 
             if bbox_annotation.shape[0] == 0:
-                if paddle.cuda.is_available():
+                if paddle.fluid.is_compiled_with_cuda():
                     alpha_factor = paddle.ones(classification.shape).cuda() * alpha
 
                     alpha_factor = 1. - alpha_factor
@@ -63,7 +63,7 @@ class FocalLoss(nn.Layer):
                     # cls_loss = focal_weight * torch.pow(bce, gamma)
                     cls_loss = focal_weight * bce
                     classification_losses.append(cls_loss.sum())
-                    regression_losses.append(paddle.tensor(0).float().cuda())
+                    regression_losses.append(paddle.to_tensor(0).float().cuda())
 
                 else:
                     alpha_factor = paddle.ones(classification.shape) * alpha
@@ -77,7 +77,7 @@ class FocalLoss(nn.Layer):
                     # cls_loss = focal_weight * torch.pow(bce, gamma)
                     cls_loss = focal_weight * bce
                     classification_losses.append(cls_loss.sum())
-                    regression_losses.append(paddle.tensor(0).float())
+                    regression_losses.append(paddle.to_tensor(0).float())
 
                 continue
 
@@ -91,12 +91,9 @@ class FocalLoss(nn.Layer):
             # compute the loss for classification
             targets = paddle.ones(classification.shape) * -1
 
-            if paddle.cuda.is_available():
-                targets = targets.cuda()
+            targets[paddle.less_than(IoU_max, 0.4), :] = 0
 
-            targets[paddle.lt(IoU_max, 0.4), :] = 0
-
-            positive_indices = paddle.ge(IoU_max, 0.5)
+            positive_indices = paddle.greater_equal(IoU_max, 0.5)
 
             num_positive_anchors = positive_indices.sum()
 
@@ -105,13 +102,13 @@ class FocalLoss(nn.Layer):
             targets[positive_indices, :] = 0
             targets[positive_indices, assigned_annotations[positive_indices, 4].long()] = 1
 
-            if paddle.cuda.is_available():
+            if paddle.fluid.is_compiled_with_cuda():
                 alpha_factor = paddle.ones(targets.shape).cuda() * alpha
             else:
                 alpha_factor = paddle.ones(targets.shape) * alpha
 
-            alpha_factor = paddle.where(paddle.eq(targets, 1.), alpha_factor, 1. - alpha_factor)
-            focal_weight = paddle.where(paddle.eq(targets, 1.), 1. - classification, classification)
+            alpha_factor = paddle.where(paddle.equal(targets, 1.), alpha_factor, 1. - alpha_factor)
+            focal_weight = paddle.where(paddle.equal(targets, 1.), 1. - classification, classification)
             focal_weight = alpha_factor * paddle.pow(focal_weight, gamma)
 
             bce = -(targets * paddle.log(classification) + (1.0 - targets) * paddle.log(1.0 - classification))
@@ -119,12 +116,12 @@ class FocalLoss(nn.Layer):
             # cls_loss = focal_weight * torch.pow(bce, gamma)
             cls_loss = focal_weight * bce
 
-            if paddle.cuda.is_available():
-                cls_loss = paddle.where(paddle.ne(targets, -1.0), cls_loss, paddle.zeros(cls_loss.shape).cuda())
+            if paddle.fluid.is_compiled_with_cuda():
+                cls_loss = paddle.where(paddle.not_equal(targets, -1.0), cls_loss, paddle.zeros(cls_loss.shape).cuda())
             else:
-                cls_loss = paddle.where(paddle.ne(targets, -1.0), cls_loss, paddle.zeros(cls_loss.shape))
+                cls_loss = paddle.where(paddle.net_equal(targets, -1.0), cls_loss, paddle.zeros(cls_loss.shape))
 
-            classification_losses.append(cls_loss.sum() / paddle.clamp(num_positive_anchors.float(), min=1.0))
+            classification_losses.append(cls_loss.sum() / paddle.clip(num_positive_anchors.float(), min=1.0))
 
             # compute the loss for regression
 
@@ -142,8 +139,8 @@ class FocalLoss(nn.Layer):
                 gt_ctr_y = assigned_annotations[:, 1] + 0.5 * gt_heights
 
                 # clip widths to 1
-                gt_widths = paddle.clamp(gt_widths, min=1)
-                gt_heights = paddle.clamp(gt_heights, min=1)
+                gt_widths = paddle.clip(gt_widths, min=1)
+                gt_heights = paddle.clip(gt_heights, min=1)
 
                 targets_dx = (gt_ctr_x - anchor_ctr_x_pi) / anchor_widths_pi
                 targets_dy = (gt_ctr_y - anchor_ctr_y_pi) / anchor_heights_pi
@@ -153,7 +150,7 @@ class FocalLoss(nn.Layer):
                 targets = paddle.stack((targets_dx, targets_dy, targets_dw, targets_dh))
                 targets = targets.t()
 
-                if paddle.cuda.is_available():
+                if paddle.fluid.is_compiled_with_cuda():
                     targets = targets / paddle.Tensor([[0.1, 0.1, 0.2, 0.2]]).cuda()
                 else:
                     targets = targets / paddle.Tensor([[0.1, 0.1, 0.2, 0.2]])
@@ -169,10 +166,7 @@ class FocalLoss(nn.Layer):
                 )
                 regression_losses.append(regression_loss.mean())
             else:
-                if paddle.cuda.is_available():
-                    regression_losses.append(paddle.tensor(0).float().cuda())
-                else:
-                    regression_losses.append(paddle.tensor(0).float())
+                regression_losses.append(paddle.to_tensor(0).float())
 
         return paddle.stack(classification_losses).mean(dim=0, keepdim=True), paddle.stack(regression_losses).mean(
             dim=0, keepdim=True)
