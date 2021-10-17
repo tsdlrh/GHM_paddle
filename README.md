@@ -186,7 +186,7 @@ class PyramidFeatures(nn.Layer):
  ```       
         
 
-### Retina_Head的paddle实现核心代码：
+### 分类回归模型的paddle实现核心代码：
 ```Python
 class RegressionModel(nn.Layer):
     def __init__(self, num_features_in, num_anchors=9, feature_size=256):
