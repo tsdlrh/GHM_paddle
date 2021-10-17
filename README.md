@@ -12,13 +12,22 @@
 #### 论文代码 https://github.com/libuyu/GHM_Detection
 
 
-![image](https://github.com/tsdlrh/Blog_image/blob/master/1.JPG)
+<!-- ![image](https://github.com/tsdlrh/Blog_image/blob/master/1.JPG) -->
+<!-- <img src="https://github.com/tsdlrh/Blog_image/blob/master/1.JPG" width="100px">
 ![image](https://github.com/tsdlrh/Blog_image/blob/master/2.JPG)
 ![image](https://github.com/tsdlrh/Blog_image/blob/master/3.JPG)
 ![image](https://github.com/tsdlrh/Blog_image/blob/master/4.JPG)
 ![image](https://github.com/tsdlrh/Blog_image/blob/master/5.JPG)
 ![image](https://github.com/tsdlrh/Blog_image/blob/master/6.JPG)
-![image](https://github.com/tsdlrh/Blog_image/blob/master/7.JPG)
+![image](https://github.com/tsdlrh/Blog_image/blob/master/7.JPG) -->
+
+<img src="https://github.com/tsdlrh/Blog_image/blob/master/1.JPG" width="100px">
+<img src="https://github.com/tsdlrh/Blog_image/blob/master/2.JPG" width="100px">
+<img src="https://github.com/tsdlrh/Blog_image/blob/master/3.JPG" width="100px">
+<img src="https://github.com/tsdlrh/Blog_image/blob/master/4.JPG" width="100px">
+<img src="https://github.com/tsdlrh/Blog_image/blob/master/5.JPG" width="100px">
+<img src="https://github.com/tsdlrh/Blog_image/blob/master/6.JPG" width="100px">
+<img src="https://github.com/tsdlrh/Blog_image/blob/master/7.JPG" width="100px">
 
 
 #### 简介：
