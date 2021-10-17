@@ -357,6 +357,26 @@ class GHMR(nn.Layer):
         loss = loss.sum() / tot
         return loss * self.loss_weight
 
+
+# if __name__=='__main__':
+#     ghm=GHMR(bins=10,momentum=0.75)
+#     input1=np.array([[[0.025, 0.35], [0.45, 0.85]]]).astype("float32")
+#     target_1=np.array([[[1.0, 1.0], [0.0, 1.0]]]).astype('float32')
+#     label_weights=np.array([[[1.0, 1.0], [1.0, 1.0]]]).astype('float32')
+#     print("input1.shape=",input1.shape)
+#     loss=ghm.forward(input1,target_1,label_weights)
+#     print(loss)
+
+#
+# if __name__ == '__main__':
+#     ghm = GHMC(bins=10, momentum=0.75)
+#     input1 = paddle.to_tensor([[[0.025, 0.35], [0.45, 0.85]]])
+#     target_1 = paddle.to_tensor([[[1.0, 1.0], [0.0, 1.0]]])
+#     label_weights = paddle.to_tensor([[[1.0, 1.0], [1.0, 1.0]]])
+#     print("input1.shape=", input1.shape)
+#     loss = ghm.forward(input1, target_1, label_weights)
+#     print(loss)
+
 ```
 
 ### （3）resnet50的模型对齐
