@@ -249,9 +249,9 @@ class ResNet(nn.Layer):
 
         features = self.fpn([x2, x3, x4])
 
-        regression = paddle.cat([self.regressionModel(feature) for feature in features], dim=1)
+        regression = paddle.concat([self.regressionModel(feature) for feature in features], dim=1)
 
-        classification = paddle.cat([self.classificationModel(feature) for feature in features], dim=1)
+        classification = paddle.concat([self.classificationModel(feature) for feature in features], dim=1)
 
         anchors = self.anchors(img_batch)
 
@@ -267,7 +267,7 @@ class ResNet(nn.Layer):
             finalAnchorBoxesIndexes = paddle.Tensor([]).long()
             finalAnchorBoxesCoordinates = paddle.Tensor([])
 
-            if paddle.cuda.is_available():
+            if paddle.fluid.is_compiled_with_cuda():
                 finalScores = finalScores.cuda()
                 finalAnchorBoxesIndexes = finalAnchorBoxesIndexes.cuda()
                 finalAnchorBoxesCoordinates = finalAnchorBoxesCoordinates.cuda()
@@ -288,13 +288,13 @@ class ResNet(nn.Layer):
                 finalResult[1].extend(paddle.tensor([i] * anchors_nms_idx.shape[0]))
                 finalResult[2].extend(anchorBoxes[anchors_nms_idx])
 
-                finalScores = paddle.cat((finalScores, scores[anchors_nms_idx]))
+                finalScores = paddle.concat((finalScores, scores[anchors_nms_idx]))
                 finalAnchorBoxesIndexesValue = paddle.tensor([i] * anchors_nms_idx.shape[0])
-                if paddle.cuda.is_available():
+                if paddle.fluid.is_compiled_with_cuda():
                     finalAnchorBoxesIndexesValue = finalAnchorBoxesIndexesValue.cuda()
 
-                finalAnchorBoxesIndexes = paddle.cat((finalAnchorBoxesIndexes, finalAnchorBoxesIndexesValue))
-                finalAnchorBoxesCoordinates = paddle.cat((finalAnchorBoxesCoordinates, anchorBoxes[anchors_nms_idx]))
+                finalAnchorBoxesIndexes = paddle.concat((finalAnchorBoxesIndexes, finalAnchorBoxesIndexesValue))
+                finalAnchorBoxesCoordinates = paddle.concat((finalAnchorBoxesCoordinates, anchorBoxes[anchors_nms_idx]))
 
             return [finalScores, finalAnchorBoxesIndexes, finalAnchorBoxesCoordinates]
 
