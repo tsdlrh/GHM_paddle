@@ -73,7 +73,268 @@ GHM_detection
 |	│   │   ├── test2017
 ```
 
+### ResNet50的paddle实现核心代码：
+```python
+class ResNet(nn.Layer):
+
+    def __init__(self, num_classes, block, layers):
+        self.inplanes = 64
+        super(ResNet, self).__init__()
+        self.conv1 = nn.Conv2D(3, 64, kernel_size=7, stride=2, padding=3, bias=False)
+        self.bn1 = nn.BatchNorm2D(64)
+        self.relu = nn.ReLU(inplace=True)
+        self.maxpool = nn.MaxPool2D(kernel_size=3, stride=2, padding=1)
+        self.layer1 = self._make_layer(block, 64, layers[0])
+        self.layer2 = self._make_layer(block, 128, layers[1], stride=2)
+        self.layer3 = self._make_layer(block, 256, layers[2], stride=2)
+        self.layer4 = self._make_layer(block, 512, layers[3], stride=2)
+
+        if block == BasicBlock:
+            fpn_sizes = [self.layer2[layers[1] - 1].conv2.out_channels, self.layer3[layers[2] - 1].conv2.out_channels,
+                         self.layer4[layers[3] - 1].conv2.out_channels]
+        elif block == Bottleneck:
+            fpn_sizes = [self.layer2[layers[1] - 1].conv3.out_channels, self.layer3[layers[2] - 1].conv3.out_channels,
+                         self.layer4[layers[3] - 1].conv3.out_channels]
+        else:
+            raise ValueError(f"Block type {block} not understood")
+
+        self.fpn = PyramidFeatures(fpn_sizes[0], fpn_sizes[1], fpn_sizes[2])
+
+        self.regressionModel = RegressionModel(256)
+        self.classificationModel = ClassificationModel(256, num_classes=num_classes)
+
+        self.anchors = Anchors()
+
+        self.regressBoxes = BBoxTransform()
+
+        self.clipBoxes = ClipBoxes()
+
+        self.focalLoss = FocalLoss()#此处采用FOCAloss
+
+        for m in self.modules():
+            if isinstance(m, nn.Conv2D):
+                n = m.kernel_size[0] * m.kernel_size[1] * m.out_channels
+                m.weight.data.normal_(0, math.sqrt(2. / n))
+            elif isinstance(m, nn.BatchNorm2D):
+                m.weight.data.fill_(1)
+                m.bias.data.zero_()
+
+        prior = 0.01
+
+        self.classificationModel.output.weight.data.fill_(0)
+        self.classificationModel.output.bias.data.fill_(-math.log((1.0 - prior) / prior))
+
+        self.regressionModel.output.weight.data.fill_(0)
+        self.regressionModel.output.bias.data.fill_(0)
+
+        self.freeze_bn()
+
+```
+
+
+### FPN的paddle实现核心代码：
+
+```Python
+class PyramidFeatures(nn.Layer):
+    def __init__(self, C3_size, C4_size, C5_size, feature_size=256):
+        super(PyramidFeatures, self).__init__()
+
+        # upsample C5 to get P5 from the FPN paper
+        self.P5_1 = nn.Conv2D(C5_size, feature_size, kernel_size=1, stride=1, padding=0)
+        self.P5_upsampled = nn.Upsample(scale_factor=2, mode='nearest')
+        self.P5_2 = nn.Conv2D(feature_size, feature_size, kernel_size=3, stride=1, padding=1)
+
+        # add P5 elementwise to C4
+        self.P4_1 = nn.Conv2D(C4_size, feature_size, kernel_size=1, stride=1, padding=0)
+        self.P4_upsampled = nn.Upsample(scale_factor=2, mode='nearest')
+        self.P4_2 = nn.Conv2D(feature_size, feature_size, kernel_size=3, stride=1, padding=1)
+
+        # add P4 elementwise to C3
+        self.P3_1 = nn.Conv2D(C3_size, feature_size, kernel_size=1, stride=1, padding=0)
+        self.P3_2 = nn.Conv2D(feature_size, feature_size, kernel_size=3, stride=1, padding=1)
+
+        # "P6 is obtained via a 3x3 stride-2 conv on C5"
+        self.P6 = nn.Conv2D(C5_size, feature_size, kernel_size=3, stride=2, padding=1)
+
+        # "P7 is computed by applying ReLU followed by a 3x3 stride-2 conv on P6"
+        self.P7_1 = nn.ReLU()
+        self.P7_2 = nn.Conv2D(feature_size, feature_size, kernel_size=3, stride=2, padding=1)
+ ```       
+        
+
+### Retina_Head的paddle实现核心代码：
+```Python
+class RegressionModel(nn.Layer):
+    def __init__(self, num_features_in, num_anchors=9, feature_size=256):
+        super(RegressionModel, self).__init__()
+
+        self.conv1 = nn.Conv2D(num_features_in, feature_size, kernel_size=3, padding=1)
+        self.act1 = nn.ReLU()
+
+        self.conv2 = nn.Conv2D(feature_size, feature_size, kernel_size=3, padding=1)
+        self.act2 = nn.ReLU()
+
+        self.conv3 = nn.Conv2D(feature_size, feature_size, kernel_size=3, padding=1)
+        self.act3 = nn.ReLU()
+
+        self.conv4 = nn.Conv2D(feature_size, feature_size, kernel_size=3, padding=1)
+        self.act4 = nn.ReLU()
+
+        self.output = nn.Conv2D(feature_size, num_anchors * 4, kernel_size=3, padding=1)
+```
+
+```Python
+class ClassificationModel(nn.Layer):
+    def __init__(self, num_features_in, num_anchors=9, num_classes=80, prior=0.01, feature_size=256):
+        super(ClassificationModel, self).__init__()
+
+        self.num_classes = num_classes
+        self.num_anchors = num_anchors
+
+        self.conv1 = nn.Conv2D(num_features_in, feature_size, kernel_size=3, padding=1)
+        self.act1 = nn.ReLU()
+
+        self.conv2 = nn.Conv2D(feature_size, feature_size, kernel_size=3, padding=1)
+        self.act2 = nn.ReLU()
+
+        self.conv3 = nn.Conv2D(feature_size, feature_size, kernel_size=3, padding=1)
+        self.act3 = nn.ReLU()
+
+        self.conv4 = nn.Conv2D(feature_size, feature_size, kernel_size=3, padding=1)
+        self.act4 = nn.ReLU()
+
+        self.output = nn.Conv2D(feature_size, num_anchors * num_classes, kernel_size=3, padding=1)
+        self.output_act = nn.Sigmoid()
+```        
+       
 
 ### （2）模型损失函数的计算实现
+
+### ghm_loss的paddle实现
+
+```Python
+class GHMC(nn.Layer):
+    def __init__(
+            self,
+            bins=10,
+            momentum=0,
+            use_sigmoid=True,
+            loss_weight=1.0):
+        super(GHMC, self).__init__()
+        self.bins = bins
+        self.momentum = momentum
+        self.edges = [float(x) / bins for x in range(bins + 1)]
+        self.edges[-1] += 1e-6
+        if momentum > 0:
+            self.acc_sum = [0.0 for _ in range(bins)]
+        self.use_sigmoid = use_sigmoid
+        self.loss_weight = loss_weight
+
+    def forward(self, pred, target, label_weight, *args, **kwargs):
+    
+        if not self.use_sigmoid:
+            raise NotImplementedError
+        # the target should be binary class label
+        if paddle.to_tensor(pred).dim() != paddle.to_tensor(target).dim():
+            target, label_weight = _expand_binary_labels(target, label_weight, pred.size(-1))
+        target, label_weight = target, label_weight
+        edges = self.edges
+        mmt = self.momentum
+        weights = paddle.zeros_like(pred)
+
+        # gradient length
+        g = paddle.abs(paddle.nn.functional.sigmoid(pred).detach() - target)
+        print("g===", g)
+
+        valid = label_weight > 0
+        tot = max(valid.sum().item(), 1.0)
+        n = 0  # n valid bins
+        for i in range(self.bins):
+            inds = (g >= edges[i]).logical_and((g < edges[i + 1]).logical_and(paddle.to_tensor(valid)))
+            num_in_bin = inds.sum().item()
+            if num_in_bin > 0:
+                if mmt > 0:
+                    self.acc_sum[i] = mmt * self.acc_sum[i] \
+                                      + (1 - mmt) * num_in_bin
+                    weights = tot / self.acc_sum[i]
+                else:
+                    weights = tot / num_in_bin
+                n += 1
+        if n > 0:
+            weights = weights / n
+
+        loss = F.binary_cross_entropy_with_logits(
+            pred, paddle.to_tensor(target), paddle.to_tensor(weights), reduction='sum') / tot
+        return loss * self.loss_weight
+
+
+class GHMR(nn.Layer):
+    def __init__(
+            self,
+            mu=0.02,
+            bins=10,
+            momentum=0,
+            loss_weight=1.0):
+        super(GHMR, self).__init__()
+        self.mu = mu
+        self.bins = bins
+        self.edges = [float(x) / bins for x in range(bins + 1)]
+        self.edges[-1] = 1e3
+        self.momentum = momentum
+        if momentum > 0:
+            self.acc_sum = [0.0 for _ in range(bins)]
+        self.loss_weight = loss_weight
+
+    def forward(self, pred, target, label_weight, avg_factor=None):
+    
+        mu = self.mu
+        edges = self.edges
+        mmt = self.momentum
+
+        # ASL1 loss
+        diff = pred - target
+        loss = paddle.sqrt(paddle.to_tensor(diff * diff + mu * mu)) - mu
+        print("loss==", loss)
+
+        # gradient length
+        g = paddle.abs(paddle.to_tensor(diff) / paddle.sqrt(paddle.to_tensor(mu * mu + diff * diff))).detach()
+        weights = paddle.zeros_like(g)
+        print("weights", weights)
+
+        valid = label_weight > 0
+        print("valid", valid)
+        tot = max(label_weight.sum().item(), 1.0)
+        print("tot", tot)
+        n = 0  # n: valid bins
+        for i in range(self.bins):
+            inds = ((g >= edges[i]).logical_and((g < edges[i + 1]).logical_and(paddle.to_tensor(valid)))).astype(int)
+            print("第", i, "次inds==", inds)
+            num_in_bin = inds.sum().item()
+            print(num_in_bin)
+            if num_in_bin > 0:
+                n += 1
+                if mmt > 0:
+                    self.acc_sum[i] = mmt * self.acc_sum[i] \
+                                      + (1 - mmt) * num_in_bin
+                    # print("此时inds的值为：",inds)
+                    # print("此时weights的值为",weights)
+                    # print("此时acc_sum的值为",self.acc_sum)
+                    # print("此时的i的值为",i)
+                    weights = tot / self.acc_sum[i]
+
+                else:
+                    weights = tot / num_in_bin
+        if n > 0:
+            weights /= n
+
+        print("for_loss", loss)
+        print("for_weights", weights)
+        loss = loss * weights
+        loss = loss.sum() / tot
+        return loss * self.loss_weight
+
+```
+
 ### （3）resnet50的模型对齐
-### （4）fpn模型的对齐
+
+
