@@ -28,9 +28,8 @@
 #### GHM思想：
 
 #### (1) GHM-C Loss
-
 对于一个候选框，它的真实便签为p*∈{0,1}，预测的值为p∈[0,1],采用二元交叉熵损失函数,那么梯度的模值定义为：
-<img src="https://github.com/tsdlrh/Blog_image/blob/master/%E7%AE%A1%E7%90%86%E5%91%98%E7%99%BB%E5%BD%95/10.JPG" width="200px">
+<img src="https://github.com/tsdlrh/Blog_image/blob/master/%E7%AE%A1%E7%90%86%E5%91%98%E7%99%BB%E5%BD%95/10.JPG" width="400px">
 其中g代表了这个样本的难易程度以及它对整个梯度的贡献。
 
 训练样本的梯度密度函数为：
@@ -39,12 +38,10 @@
 
 g的gradient norm为在以g为中心，长度为ε的区域内的样本数，并且由该区域的有效长度进行归一化。定义梯度密度参数
 <img src="https://github.com/tsdlrh/Blog_image/blob/master/%E7%AE%A1%E7%90%86%E5%91%98%E7%99%BB%E5%BD%95/3.JPG" width="200px">
-
 N为样本总数
 
 根据梯度密度参数，可以得到分类问题的损失平衡函数：
 <img src="https://github.com/tsdlrh/Blog_image/blob/master/%E7%AE%A1%E7%90%86%E5%91%98%E7%99%BB%E5%BD%95/4.JPG" width="200px">
-
 
 #### (2) GHM-R Loss
 Smooth L1损失函数为：
@@ -60,10 +57,22 @@ Smooth L1关于ti的导数为：
 <img src="https://github.com/tsdlrh/Blog_image/blob/master/%E7%AE%A1%E7%90%86%E5%91%98%E7%99%BB%E5%BD%95/9.JPG" width="200px">
 
 
-
-
 ## 二、论文复现
 ### （1）模型组网的搭建
+
+GHM_detection
+|	├── backbone:Resnet50
+|	├── necks:FPN
+|	├── bbox_head:Retina_head
+|	├── data
+|	│   ├── coco
+|	│   │   ├── annotations
+|	│   │   ├── train2017
+|	│   │   ├── val2017
+|	│   │   ├── test2017
+
+
+
 ### （2）模型损失函数的计算实现
 ### （3）resnet50的模型对齐
 ### （4）fpn模型的对齐
