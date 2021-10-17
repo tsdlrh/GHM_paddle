@@ -34,10 +34,7 @@ class Anchors(nn.Layer):
 
         all_anchors = np.expand_dims(all_anchors, axis=0)
 
-        if paddle.cuda.is_available():
-            return paddle.from_numpy(all_anchors.astype(np.float32)).cuda()
-        else:
-            return paddle.from_numpy(all_anchors.astype(np.float32))
+        return fluid.dygraph.to_variable(all_anchors.astype(np.float32))
 
 
 def generate_anchors(base_size=16, ratios=None, scales=None):
