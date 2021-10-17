@@ -33,28 +33,28 @@
 其中g代表了这个样本的难易程度以及它对整个梯度的贡献。
 
 训练样本的梯度密度函数为：
-<img src="https://github.com/tsdlrh/Blog_image/blob/master/%E7%AE%A1%E7%90%86%E5%91%98%E7%99%BB%E5%BD%95/1.JPG" width="200px">
+<img src="https://github.com/tsdlrh/Blog_image/blob/master/%E7%AE%A1%E7%90%86%E5%91%98%E7%99%BB%E5%BD%95/1.JPG" width="400px">
 其中gk为第k个样本的gradient norm.
 
 g的gradient norm为在以g为中心，长度为ε的区域内的样本数，并且由该区域的有效长度进行归一化。定义梯度密度参数
-<img src="https://github.com/tsdlrh/Blog_image/blob/master/%E7%AE%A1%E7%90%86%E5%91%98%E7%99%BB%E5%BD%95/3.JPG" width="200px">
+<img src="https://github.com/tsdlrh/Blog_image/blob/master/%E7%AE%A1%E7%90%86%E5%91%98%E7%99%BB%E5%BD%95/3.JPG" width="400px">
 N为样本总数
 
 根据梯度密度参数，可以得到分类问题的损失平衡函数：
-<img src="https://github.com/tsdlrh/Blog_image/blob/master/%E7%AE%A1%E7%90%86%E5%91%98%E7%99%BB%E5%BD%95/4.JPG" width="200px">
+<img src="https://github.com/tsdlrh/Blog_image/blob/master/%E7%AE%A1%E7%90%86%E5%91%98%E7%99%BB%E5%BD%95/4.JPG" width="400px">
 
 #### (2) GHM-R Loss
 Smooth L1损失函数为：
-<img src="https://github.com/tsdlrh/Blog_image/blob/master/%E7%AE%A1%E7%90%86%E5%91%98%E7%99%BB%E5%BD%95/5.JPG" width="200px">
+<img src="https://github.com/tsdlrh/Blog_image/blob/master/%E7%AE%A1%E7%90%86%E5%91%98%E7%99%BB%E5%BD%95/5.JPG" width="400px">
 
 Smooth L1关于ti的导数为：
-<img src="https://github.com/tsdlrh/Blog_image/blob/master/%E7%AE%A1%E7%90%86%E5%91%98%E7%99%BB%E5%BD%95/6.JPG" width="200px">
+<img src="https://github.com/tsdlrh/Blog_image/blob/master/%E7%AE%A1%E7%90%86%E5%91%98%E7%99%BB%E5%BD%95/6.JPG" width="400px">
 
 对于所有|d|>δ的样本都具有gradient norm,这就不可能仅仅依靠gradient norm来区分不同属性的样本，为了在回归Loss上应用GHM,将传统的SL1损失函数，改变为ASL1形式
-<img src="https://github.com/tsdlrh/Blog_image/blob/master/%E7%AE%A1%E7%90%86%E5%91%98%E7%99%BB%E5%BD%95/7.JPG" width="200px">
+<img src="https://github.com/tsdlrh/Blog_image/blob/master/%E7%AE%A1%E7%90%86%E5%91%98%E7%99%BB%E5%BD%95/7.JPG" width="400px">
 
 当d很小时，近似为一个方差函数L2 Loss,当d很大时，近似为一个线性损失L1 Loss，具有较好的平滑性，其偏导存在且连续，将GHM应用于回归Loss的结果如下：
-<img src="https://github.com/tsdlrh/Blog_image/blob/master/%E7%AE%A1%E7%90%86%E5%91%98%E7%99%BB%E5%BD%95/9.JPG" width="200px">
+<img src="https://github.com/tsdlrh/Blog_image/blob/master/%E7%AE%A1%E7%90%86%E5%91%98%E7%99%BB%E5%BD%95/9.JPG" width="400px">
 
 
 ## 二、论文复现
@@ -71,6 +71,24 @@ GHM_detection
 |	│   │   ├── train2017
 |	│   │   ├── val2017
 |	│   │   ├── test2017
+```
+
+
+```
+项目文件功能说明
+
+-anchors.py 实现anchor_head代码
+
+-utils.py 实现BasicBlock,Bottleneck,BBoxTransform和ClipBox函数功能
+
+-retin_net.py 模型组网，搭建了resnet50+fpn+retina_head的模型结构
+
+-losses.py 实现focal_loss函数
+
+-ghm_loss.py 实现GHM_C loss和GHM_R loss函数
+
+-dataloader.py 实现COCO数据的加载
+
 ```
 
 ### ResNet50的paddle实现核心代码：
@@ -336,5 +354,11 @@ class GHMR(nn.Layer):
 ```
 
 ### （3）resnet50的模型对齐
+![image](https://github.com/tsdlrh/Blog_image/blob/master/%E7%AE%A1%E7%90%86%E5%91%98%E7%99%BB%E5%BD%95/11.JPG)
 
+
+### 其他
+
+### 由于时间仓促，目前只完成了对于网络模型的组网搭建部分，对GHM_Loss的函数计算进行了Paddle实现，并对resnet50进行了前向对齐，编写了数据加载dataloader.py
+### 接下来的任务还需要对necks和bbox_head进行对齐,对模型进行训练和调试以及反向对齐和loss对齐，验证论文的效果.工作后续更新
 
