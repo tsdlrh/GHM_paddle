@@ -60,8 +60,7 @@ Smooth L1关于ti的导数为：
 ## 二、论文复现
 ### （1）模型组网的搭建
 
-########### 网络结构描述
-
+```
 GHM_detection
 |	├── backbone:Resnet50
 |	├── necks:FPN
@@ -72,7 +71,7 @@ GHM_detection
 |	│   │   ├── train2017
 |	│   │   ├── val2017
 |	│   │   ├── test2017
-
+```
 
 
 ### （2）模型损失函数的计算实现
