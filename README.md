@@ -21,7 +21,7 @@
 ![image](https://github.com/tsdlrh/Blog_image/blob/master/6.JPG)
 ![image](https://github.com/tsdlrh/Blog_image/blob/master/7.JPG) -->
 
-<img src="https://github.com/tsdlrh/Blog_image/blob/master/1.JPG" width="600px">
+<img src="https://github.com/tsdlrh/Blog_image/blob/master/1.JPG" width="800px">
 <img src="https://github.com/tsdlrh/Blog_image/blob/master/2.JPG" width="100px">
 <img src="https://github.com/tsdlrh/Blog_image/blob/master/3.JPG" width="100px">
 <img src="https://github.com/tsdlrh/Blog_image/blob/master/4.JPG" width="100px">
