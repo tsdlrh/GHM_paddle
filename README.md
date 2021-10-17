@@ -29,27 +29,21 @@
 
 #### (1) GHM-C Loss
 
-对于一个候选框，它的真实便签为p*∈{0,1}，预测的值为p∈[0,1],采用二元交叉熵损失函数：
-<img src="https://github.com/tsdlrh/Blog_image/blob/master/%E7%AE%A1%E7%90%86%E5%91%98%E7%99%BB%E5%BD%95/1.JPG" width="200px">
-
-假设x为模型输出，p=sigmodi(x),那么上述的交叉熵损失对于x的导数为：
-<img src="https://github.com/tsdlrh/Blog_image/blob/master/%E7%AE%A1%E7%90%86%E5%91%98%E7%99%BB%E5%BD%95/2.JPG" width="200px">
-
-那么梯度的模值定义为：
+对于一个候选框，它的真实便签为p*∈{0,1}，预测的值为p∈[0,1],采用二元交叉熵损失函数,那么梯度的模值定义为：
 <img src="https://github.com/tsdlrh/Blog_image/blob/master/%E7%AE%A1%E7%90%86%E5%91%98%E7%99%BB%E5%BD%95/10.JPG" width="200px">
 其中g代表了这个样本的难易程度以及它对整个梯度的贡献。
 
 训练样本的梯度密度函数为：
-<img src="https://github.com/tsdlrh/Blog_image/blob/master/%E7%AE%A1%E7%90%86%E5%91%98%E7%99%BB%E5%BD%95/3.JPG" width="200px">
+<img src="https://github.com/tsdlrh/Blog_image/blob/master/%E7%AE%A1%E7%90%86%E5%91%98%E7%99%BB%E5%BD%95/1.JPG" width="200px">
 其中gk为第k个样本的gradient norm.
 
 g的gradient norm为在以g为中心，长度为ε的区域内的样本数，并且由该区域的有效长度进行归一化。定义梯度密度参数
-<img src="https://github.com/tsdlrh/Blog_image/blob/master/%E7%AE%A1%E7%90%86%E5%91%98%E7%99%BB%E5%BD%95/4.JPG" width="200px">
+<img src="https://github.com/tsdlrh/Blog_image/blob/master/%E7%AE%A1%E7%90%86%E5%91%98%E7%99%BB%E5%BD%95/3.JPG" width="200px">
 
 N为样本总数
 
 根据梯度密度参数，可以得到分类问题的损失平衡函数：
-<img src="https://github.com/tsdlrh/Blog_image/blob/master/%E7%AE%A1%E7%90%86%E5%91%98%E7%99%BB%E5%BD%95/5.JPG" width="200px">
+<img src="https://github.com/tsdlrh/Blog_image/blob/master/%E7%AE%A1%E7%90%86%E5%91%98%E7%99%BB%E5%BD%95/4.JPG" width="200px">
 
 
 #### (2) GHM-R Loss
@@ -57,10 +51,10 @@ Smooth L1损失函数为：
 <img src="https://github.com/tsdlrh/Blog_image/blob/master/%E7%AE%A1%E7%90%86%E5%91%98%E7%99%BB%E5%BD%95/5.JPG" width="200px">
 
 Smooth L1关于ti的导数为：
-<img src="https://github.com/tsdlrh/Blog_image/blob/master/%E7%AE%A1%E7%90%86%E5%91%98%E7%99%BB%E5%BD%95/7.JPG" width="200px">
+<img src="https://github.com/tsdlrh/Blog_image/blob/master/%E7%AE%A1%E7%90%86%E5%91%98%E7%99%BB%E5%BD%95/6.JPG" width="200px">
 
 对于所有|d|>δ的样本都具有gradient norm,这就不可能仅仅依靠gradient norm来区分不同属性的样本，为了在回归Loss上应用GHM,将传统的SL1损失函数，改变为ASL1形式
-<img src="https://github.com/tsdlrh/Blog_image/blob/master/%E7%AE%A1%E7%90%86%E5%91%98%E7%99%BB%E5%BD%95/8.JPG" width="200px">
+<img src="https://github.com/tsdlrh/Blog_image/blob/master/%E7%AE%A1%E7%90%86%E5%91%98%E7%99%BB%E5%BD%95/7.JPG" width="200px">
 
 当d很小时，近似为一个方差函数L2 Loss,当d很大时，近似为一个线性损失L1 Loss，具有较好的平滑性，其偏导存在且连续，将GHM应用于回归Loss的结果如下：
 <img src="https://github.com/tsdlrh/Blog_image/blob/master/%E7%AE%A1%E7%90%86%E5%91%98%E7%99%BB%E5%BD%95/9.JPG" width="200px">
