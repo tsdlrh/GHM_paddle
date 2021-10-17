@@ -53,7 +53,7 @@ class GHMC(nn.Layer):
 
         # gradient length
         g = paddle.abs(paddle.nn.functional.sigmoid(pred).detach() - target)
-        print("g===", g)
+#         print("g===", g)
 
         valid = label_weight > 0
         tot = max(valid.sum().item(), 1.0)
@@ -111,23 +111,23 @@ class GHMR(nn.Layer):
         # ASL1 loss
         diff = pred - target
         loss = paddle.sqrt(paddle.to_tensor(diff * diff + mu * mu)) - mu
-        print("loss==", loss)
+#         print("loss==", loss)
 
         # gradient length
         g = paddle.abs(paddle.to_tensor(diff) / paddle.sqrt(paddle.to_tensor(mu * mu + diff * diff))).detach()
         weights = paddle.zeros_like(g)
-        print("weights", weights)
+#         print("weights", weights)
 
         valid = label_weight > 0
-        print("valid", valid)
+#         print("valid", valid)
         tot = max(label_weight.sum().item(), 1.0)
-        print("tot", tot)
+#         print("tot", tot)
         n = 0  # n: valid bins
         for i in range(self.bins):
             inds = ((g >= edges[i]).logical_and((g < edges[i + 1]).logical_and(paddle.to_tensor(valid)))).astype(int)
-            print("第", i, "次inds==", inds)
+#             print("第", i, "次inds==", inds)
             num_in_bin = inds.sum().item()
-            print(num_in_bin)
+#             print(num_in_bin)
             if num_in_bin > 0:
                 n += 1
                 if mmt > 0:
@@ -144,8 +144,8 @@ class GHMR(nn.Layer):
         if n > 0:
             weights /= n
 
-        print("for_loss", loss)
-        print("for_weights", weights)
+#         print("for_loss", loss)
+#         print("for_weights", weights)
         loss = loss * weights
         loss = loss.sum() / tot
         return loss * self.loss_weight
