@@ -52,12 +52,12 @@ N为样本总数
 <img src="https://github.com/tsdlrh/Blog_image/blob/master/%E7%AE%A1%E7%90%86%E5%91%98%E7%99%BB%E5%BD%95/5.JPG" width="200px">
 
 
-####(1) GHM-R Loss
+#### (2) GHM-R Loss
 Smooth L1损失函数为：
-<img src="https://github.com/tsdlrh/Blog_image/blob/master/%E7%AE%A1%E7%90%86%E5%91%98%E7%99%BB%E5%BD%95/6.JPG" width="200px">
+<img src="https://github.com/tsdlrh/Blog_image/blob/master/%E7%AE%A1%E7%90%86%E5%91%98%E7%99%BB%E5%BD%95/5.JPG" width="200px">
 
 Smooth L1关于ti的导数为：
-<img src="https://github.com/tsdlrh/Blog_image/blob/master/%E7%AE%A1%E7%90%86%E5%91%98%E7%99%BB%E5%BD%95/7.JPG" width="200px">
+<img src="https://github.com/tsdlrh/Blog_image/blob/master/%E7%AE%A1%E7%90%86%E5%91%98%E7%99%BB%E5%BD%95/6.JPG" width="200px">
 
 对于所有|d|>δ的样本都具有gradient norm,这就不可能仅仅依靠gradient norm来区分不同属性的样本，为了在回归Loss上应用GHM,将传统的SL1损失函数，改变为ASL1形式
 <img src="https://github.com/tsdlrh/Blog_image/blob/master/%E7%AE%A1%E7%90%86%E5%91%98%E7%99%BB%E5%BD%95/8.JPG" width="200px">
