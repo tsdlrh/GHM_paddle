@@ -14,8 +14,15 @@ def _expand_binary_labels(labels, label_weights, label_channels):
     )
     return bin_labels, bin_labels_weights
 
-
+#GHM_C Loss 损失函数，将GHM思想结合分类的交叉熵损失函数
 class GHMC(nn.Layer):
+    """
+    Args:
+        bins (int): Number of the unit regions for distribution calculation.
+        momentum (float): The parameter for moving average.
+        use_sigmoid (bool): Can only be true for BCE based loss now.
+        loss_weight (float): The weight of the total GHM-C loss.
+    """    
     def __init__(
             self,
             bins=10,
@@ -34,12 +41,14 @@ class GHMC(nn.Layer):
 
     def forward(self, pred, target, label_weight, *args, **kwargs):
         """ Args:
-        pred [batch_num, class_num]:
-            The direct prediction of classification fc layer.
-        target [batch_num, class_num]:
-            Binary class target for each sample.
-        label_weight [batch_num, class_num]:
-            the value is 1 if the sample is valid and 0 if ignored.
+            pred (float tensor of size [batch_num, class_num]):
+                The direct prediction of classification fc layer.
+            target (float tensor of size [batch_num, class_num]):
+                Binary class target for each sample.
+            label_weight (float tensor of size [batch_num, class_num]):
+                the value is 1 if the sample is valid and 0 if ignored.
+        Returns:
+            The gradient harmonized loss.
         """
         if not self.use_sigmoid:
             raise NotImplementedError
@@ -53,7 +62,6 @@ class GHMC(nn.Layer):
 
         # gradient length
         g = paddle.abs(paddle.nn.functional.sigmoid(pred).detach() - target)
-#         print("g===", g)
 
         valid = label_weight > 0
         tot = max(valid.sum().item(), 1.0)
@@ -76,8 +84,15 @@ class GHMC(nn.Layer):
             pred, paddle.to_tensor(target), paddle.to_tensor(weights), reduction='sum') / tot
         return loss * self.loss_weight
 
-
+#GHM_R Loss损失函数，将GHM思想用于回归的Smooth L1损失函数
 class GHMR(nn.Layer):
+    """
+    Args:
+        mu (float): The parameter for the Authentic Smooth L1 loss.
+        bins (int): Number of the unit regions for distribution calculation.
+        momentum (float): The parameter for moving average.
+        loss_weight (float): The weight of the total GHM-R loss.
+    """    
     def __init__(
             self,
             mu=0.02,
@@ -95,14 +110,17 @@ class GHMR(nn.Layer):
         self.loss_weight = loss_weight
 
     def forward(self, pred, target, label_weight, avg_factor=None):
-        """ Args:
-        pred [batch_num, 4 (* class_num)]:
-            The prediction of box regression layer. Channel number can be 4 or
-            (4 * class_num) depending on whether it is class-agnostic.
-        target [batch_num, 4 (* class_num)]:
-            The target regression values with the same size of pred.
-        label_weight [batch_num, 4 (* class_num)]:
-            The weight of each sample, 0 if ignored.
+        """   
+        Args:
+            pred (float tensor of size [batch_num, 4 (* class_num)]):
+                The prediction of box regression layer. Channel number can be 4
+                or 4 * class_num depending on whether it is class-agnostic.
+            target (float tensor of size [batch_num, 4 (* class_num)]):
+                The target regression values with the same size of pred.
+            label_weight (float tensor of size [batch_num, 4 (* class_num)]):
+                The weight of each sample, 0 if ignored.
+        Returns:
+            The gradient harmonized loss.
         """
         mu = self.mu
         edges = self.edges
@@ -111,32 +129,26 @@ class GHMR(nn.Layer):
         # ASL1 loss
         diff = pred - target
         loss = paddle.sqrt(paddle.to_tensor(diff * diff + mu * mu)) - mu
-#         print("loss==", loss)
 
         # gradient length
         g = paddle.abs(paddle.to_tensor(diff) / paddle.sqrt(paddle.to_tensor(mu * mu + diff * diff))).detach()
         weights = paddle.zeros_like(g)
-#         print("weights", weights)
 
         valid = label_weight > 0
-#         print("valid", valid)
+
         tot = max(label_weight.sum().item(), 1.0)
-#         print("tot", tot)
+
         n = 0  # n: valid bins
         for i in range(self.bins):
             inds = ((g >= edges[i]).logical_and((g < edges[i + 1]).logical_and(paddle.to_tensor(valid)))).astype(int)
-#             print("第", i, "次inds==", inds)
+
             num_in_bin = inds.sum().item()
-#             print(num_in_bin)
+
             if num_in_bin > 0:
                 n += 1
                 if mmt > 0:
                     self.acc_sum[i] = mmt * self.acc_sum[i] \
                                       + (1 - mmt) * num_in_bin
-                    # print("此时inds的值为：",inds)
-                    # print("此时weights的值为",weights)
-                    # print("此时acc_sum的值为",self.acc_sum)
-                    # print("此时的i的值为",i)
                     weights = tot / self.acc_sum[i]
 
                 else:
@@ -144,13 +156,11 @@ class GHMR(nn.Layer):
         if n > 0:
             weights /= n
 
-#         print("for_loss", loss)
-#         print("for_weights", weights)
         loss = loss * weights
         loss = loss.sum() / tot
         return loss * self.loss_weight
 
-
+#函数测试
 # if __name__=='__main__':
 #     ghm=GHMR(bins=10,momentum=0.75)
 #     input1=np.array([[[0.025, 0.35], [0.45, 0.85]]]).astype("float32")
