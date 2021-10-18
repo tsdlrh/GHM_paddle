@@ -87,9 +87,9 @@ GHM_detection
 
 -utils.py 实现BasicBlock,Bottleneck,BBoxTransform和ClipBox函数功能
 
--retin_net.py 模型组网，搭建了resnet50+fpn+retina_head的模型结构
+-retina_net.py 模型组网，搭建了resnet50+fpn+retina_head的模型结构
 
--losses.py 实现focal_loss函数
+-losses.py 实现Focal_loss函数
 
 -ghm_loss.py 实现GHM_C loss和GHM_R loss函数
 
