@@ -99,6 +99,7 @@ GHM_detection
 
 ### ResNet50的paddle实现核心代码：
 ```python
+#Resnet50的搭建
 class ResNet(nn.Layer):
 
     def __init__(self, num_classes, block, layers):
@@ -106,7 +107,7 @@ class ResNet(nn.Layer):
         super(ResNet, self).__init__()
         self.conv1 = nn.Conv2D(3, 64, kernel_size=7, stride=2, padding=3, bias=False)
         self.bn1 = nn.BatchNorm2D(64)
-        self.relu = nn.ReLU(inplace=True)
+        self.relu = nn.ReLU()
         self.maxpool = nn.MaxPool2D(kernel_size=3, stride=2, padding=1)
         self.layer1 = self._make_layer(block, 64, layers[0])
         self.layer2 = self._make_layer(block, 128, layers[1], stride=2)
@@ -183,6 +184,29 @@ class PyramidFeatures(nn.Layer):
         # "P7 is computed by applying ReLU followed by a 3x3 stride-2 conv on P6"
         self.P7_1 = nn.ReLU()
         self.P7_2 = nn.Conv2D(feature_size, feature_size, kernel_size=3, stride=2, padding=1)
+
+    def forward(self, inputs):
+        C3, C4, C5 = inputs
+
+        P5_x = self.P5_1(C5)
+        P5_upsampled_x = self.P5_upsampled(P5_x)
+        P5_x = self.P5_2(P5_x)
+
+        P4_x = self.P4_1(C4)
+        P4_x = P5_upsampled_x + P4_x
+        P4_upsampled_x = self.P4_upsampled(P4_x)
+        P4_x = self.P4_2(P4_x)
+
+        P3_x = self.P3_1(C3)
+        P3_x = P3_x + P4_upsampled_x
+        P3_x = self.P3_2(P3_x)
+
+        P6_x = self.P6(C5)
+
+        P7_x = self.P7_1(P6_x)
+        P7_x = self.P7_2(P7_x)
+
+        return [P3_x, P4_x, P5_x, P6_x, P7_x]
  ```       
         
 
@@ -205,6 +229,7 @@ class RegressionModel(nn.Layer):
         self.act4 = nn.ReLU()
 
         self.output = nn.Conv2D(feature_size, num_anchors * 4, kernel_size=3, padding=1)
+
 ```
 
 ```Python
@@ -229,6 +254,7 @@ class ClassificationModel(nn.Layer):
 
         self.output = nn.Conv2D(feature_size, num_anchors * num_classes, kernel_size=3, padding=1)
         self.output_act = nn.Sigmoid()
+
 ```        
        
 
@@ -238,6 +264,13 @@ class ClassificationModel(nn.Layer):
 
 ```Python
 class GHMC(nn.Layer):
+    """
+    Args:
+        bins (int): Number of the unit regions for distribution calculation.
+        momentum (float): The parameter for moving average.
+        use_sigmoid (bool): Can only be true for BCE based loss now.
+        loss_weight (float): The weight of the total GHM-C loss.
+    """    
     def __init__(
             self,
             bins=10,
@@ -255,7 +288,16 @@ class GHMC(nn.Layer):
         self.loss_weight = loss_weight
 
     def forward(self, pred, target, label_weight, *args, **kwargs):
-    
+        """ Args:
+            pred (float tensor of size [batch_num, class_num]):
+                The direct prediction of classification fc layer.
+            target (float tensor of size [batch_num, class_num]):
+                Binary class target for each sample.
+            label_weight (float tensor of size [batch_num, class_num]):
+                the value is 1 if the sample is valid and 0 if ignored.
+        Returns:
+            The gradient harmonized loss.
+        """
         if not self.use_sigmoid:
             raise NotImplementedError
         # the target should be binary class label
@@ -268,7 +310,6 @@ class GHMC(nn.Layer):
 
         # gradient length
         g = paddle.abs(paddle.nn.functional.sigmoid(pred).detach() - target)
-        print("g===", g)
 
         valid = label_weight > 0
         tot = max(valid.sum().item(), 1.0)
@@ -291,8 +332,15 @@ class GHMC(nn.Layer):
             pred, paddle.to_tensor(target), paddle.to_tensor(weights), reduction='sum') / tot
         return loss * self.loss_weight
 
-
+#GHM_R Loss损失函数，将GHM思想用于回归的Smooth L1损失函数
 class GHMR(nn.Layer):
+    """
+    Args:
+        mu (float): The parameter for the Authentic Smooth L1 loss.
+        bins (int): Number of the unit regions for distribution calculation.
+        momentum (float): The parameter for moving average.
+        loss_weight (float): The weight of the total GHM-R loss.
+    """    
     def __init__(
             self,
             mu=0.02,
@@ -310,7 +358,18 @@ class GHMR(nn.Layer):
         self.loss_weight = loss_weight
 
     def forward(self, pred, target, label_weight, avg_factor=None):
-    
+        """   
+        Args:
+            pred (float tensor of size [batch_num, 4 (* class_num)]):
+                The prediction of box regression layer. Channel number can be 4
+                or 4 * class_num depending on whether it is class-agnostic.
+            target (float tensor of size [batch_num, 4 (* class_num)]):
+                The target regression values with the same size of pred.
+            label_weight (float tensor of size [batch_num, 4 (* class_num)]):
+                The weight of each sample, 0 if ignored.
+        Returns:
+            The gradient harmonized loss.
+        """
         mu = self.mu
         edges = self.edges
         mmt = self.momentum
@@ -318,32 +377,26 @@ class GHMR(nn.Layer):
         # ASL1 loss
         diff = pred - target
         loss = paddle.sqrt(paddle.to_tensor(diff * diff + mu * mu)) - mu
-        print("loss==", loss)
 
         # gradient length
         g = paddle.abs(paddle.to_tensor(diff) / paddle.sqrt(paddle.to_tensor(mu * mu + diff * diff))).detach()
         weights = paddle.zeros_like(g)
-        print("weights", weights)
 
         valid = label_weight > 0
-        print("valid", valid)
+
         tot = max(label_weight.sum().item(), 1.0)
-        print("tot", tot)
+
         n = 0  # n: valid bins
         for i in range(self.bins):
             inds = ((g >= edges[i]).logical_and((g < edges[i + 1]).logical_and(paddle.to_tensor(valid)))).astype(int)
-            print("第", i, "次inds==", inds)
+
             num_in_bin = inds.sum().item()
-            print(num_in_bin)
+
             if num_in_bin > 0:
                 n += 1
                 if mmt > 0:
                     self.acc_sum[i] = mmt * self.acc_sum[i] \
                                       + (1 - mmt) * num_in_bin
-                    # print("此时inds的值为：",inds)
-                    # print("此时weights的值为",weights)
-                    # print("此时acc_sum的值为",self.acc_sum)
-                    # print("此时的i的值为",i)
                     weights = tot / self.acc_sum[i]
 
                 else:
@@ -351,31 +404,9 @@ class GHMR(nn.Layer):
         if n > 0:
             weights /= n
 
-        print("for_loss", loss)
-        print("for_weights", weights)
         loss = loss * weights
         loss = loss.sum() / tot
         return loss * self.loss_weight
-
-
-# if __name__=='__main__':
-#     ghm=GHMR(bins=10,momentum=0.75)
-#     input1=np.array([[[0.025, 0.35], [0.45, 0.85]]]).astype("float32")
-#     target_1=np.array([[[1.0, 1.0], [0.0, 1.0]]]).astype('float32')
-#     label_weights=np.array([[[1.0, 1.0], [1.0, 1.0]]]).astype('float32')
-#     print("input1.shape=",input1.shape)
-#     loss=ghm.forward(input1,target_1,label_weights)
-#     print(loss)
-
-#
-# if __name__ == '__main__':
-#     ghm = GHMC(bins=10, momentum=0.75)
-#     input1 = paddle.to_tensor([[[0.025, 0.35], [0.45, 0.85]]])
-#     target_1 = paddle.to_tensor([[[1.0, 1.0], [0.0, 1.0]]])
-#     label_weights = paddle.to_tensor([[[1.0, 1.0], [1.0, 1.0]]])
-#     print("input1.shape=", input1.shape)
-#     loss = ghm.forward(input1, target_1, label_weights)
-#     print(loss)
 
 ```
 
