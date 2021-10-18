@@ -1,8 +1,7 @@
 import paddle.nn as nn
 import paddle
 import math
-# import paddle.utils.model_zoo as model_zoo
-# from torchvision.ops import nms
+
 from paddle.utils.download import get_weights_path_from_url
 from paddle.fluid.layers import matrix_nms
 from utils import BasicBlock, Bottleneck, BBoxTransform, ClipBoxes
@@ -17,7 +16,7 @@ model_urls = {
     'resnet152': 'https://download.pytorch.org/models/resnet152-b121ed2d.pth',
 }
 
-
+#FPN网络的搭建
 class PyramidFeatures(nn.Layer):
     def __init__(self, C3_size, C4_size, C5_size, feature_size=256):
         super(PyramidFeatures, self).__init__()
@@ -66,7 +65,7 @@ class PyramidFeatures(nn.Layer):
 
         return [P3_x, P4_x, P5_x, P6_x, P7_x]
 
-
+#回归模型
 class RegressionModel(nn.Layer):
     def __init__(self, num_features_in, num_anchors=9, feature_size=256):
         super(RegressionModel, self).__init__()
@@ -105,7 +104,7 @@ class RegressionModel(nn.Layer):
 
         return out.contiguous().view(out.shape[0], -1, 4)
 
-
+#分类模型
 class ClassificationModel(nn.Layer):
     def __init__(self, num_features_in, num_anchors=9, num_classes=80, prior=0.01, feature_size=256):
         super(ClassificationModel, self).__init__()
@@ -153,7 +152,7 @@ class ClassificationModel(nn.Layer):
 
         return out2.contiguous().view(x.shape[0], -1, self.num_classes)
 
-
+#Resnet50的搭建
 class ResNet(nn.Layer):
 
     def __init__(self, num_classes, block, layers):
@@ -161,7 +160,7 @@ class ResNet(nn.Layer):
         super(ResNet, self).__init__()
         self.conv1 = nn.Conv2D(3, 64, kernel_size=7, stride=2, padding=3, bias=False)
         self.bn1 = nn.BatchNorm2D(64)
-        self.relu = nn.ReLU(inplace=True)
+        self.relu = nn.ReLU()
         self.maxpool = nn.MaxPool2D(kernel_size=3, stride=2, padding=1)
         self.layer1 = self._make_layer(block, 64, layers[0])
         self.layer2 = self._make_layer(block, 128, layers[1], stride=2)
