@@ -22,9 +22,8 @@ def calc_iou(a, b):
 
     return IoU
 
-
+#FocalLoss 损失函数的计算
 class FocalLoss(nn.Layer):
-    # def __init__(self):
 
     def forward(self, classifications, regressions, anchors, annotations):
         alpha = 0.25
@@ -60,7 +59,6 @@ class FocalLoss(nn.Layer):
 
                     bce = -(paddle.log(1.0 - classification))
 
-                    # cls_loss = focal_weight * torch.pow(bce, gamma)
                     cls_loss = focal_weight * bce
                     classification_losses.append(cls_loss.sum())
                     regression_losses.append(paddle.to_tensor(0).float().cuda())
@@ -73,8 +71,7 @@ class FocalLoss(nn.Layer):
                     focal_weight = alpha_factor * paddle.pow(focal_weight, gamma)
 
                     bce = -(paddle.log(1.0 - classification))
-
-                    # cls_loss = focal_weight * torch.pow(bce, gamma)
+    
                     cls_loss = focal_weight * bce
                     classification_losses.append(cls_loss.sum())
                     regression_losses.append(paddle.to_tensor(0).float())
@@ -85,10 +82,6 @@ class FocalLoss(nn.Layer):
 
             IoU_max, IoU_argmax = paddle.max(IoU, dim=1)  # num_anchors x 1
 
-            # import pdb
-            # pdb.set_trace()
-
-            # compute the loss for classification
             targets = paddle.ones(classification.shape) * -1
 
             targets[paddle.less_than(IoU_max, 0.4), :] = 0
@@ -113,7 +106,6 @@ class FocalLoss(nn.Layer):
 
             bce = -(targets * paddle.log(classification) + (1.0 - targets) * paddle.log(1.0 - classification))
 
-            # cls_loss = focal_weight * torch.pow(bce, gamma)
             cls_loss = focal_weight * bce
 
             if paddle.fluid.is_compiled_with_cuda():
@@ -122,9 +114,6 @@ class FocalLoss(nn.Layer):
                 cls_loss = paddle.where(paddle.net_equal(targets, -1.0), cls_loss, paddle.zeros(cls_loss.shape))
 
             classification_losses.append(cls_loss.sum() / paddle.clip(num_positive_anchors.float(), min=1.0))
-
-            # compute the loss for regression
-
             if positive_indices.sum() > 0:
                 assigned_annotations = assigned_annotations[positive_indices, :]
 
@@ -160,7 +149,7 @@ class FocalLoss(nn.Layer):
                 regression_diff = paddle.abs(targets - regression[positive_indices, :])
 
                 regression_loss = paddle.where(
-                    paddle.le(regression_diff, 1.0 / 9.0),
+                    paddle.less_equal(regression_diff, 1.0 / 9.0),
                     0.5 * 9.0 * paddle.pow(regression_diff, 2),
                     regression_diff - 0.5 / 9.0
                 )
