@@ -8,7 +8,7 @@ def conv3x3(in_planes, out_planes, stride=1):
     return nn.Conv2D(in_planes, out_planes, kernel_size=3, stride=stride,
                      padding=1, bias=False)
 
-
+#创建BasicBlock模块
 class BasicBlock(nn.Layer):
     expansion = 1
 
@@ -16,7 +16,7 @@ class BasicBlock(nn.Layer):
         super(BasicBlock, self).__init__()
         self.conv1 = conv3x3(inplanes, planes, stride)
         self.bn1 = nn.BatchNorm2D(planes)
-        self.relu = nn.ReLU(inplace=True)
+        self.relu = nn.ReLU()
         self.conv2 = conv3x3(planes, planes)
         self.bn2 = nn.BatchNorm2D(planes)
         self.downsample = downsample
@@ -40,7 +40,7 @@ class BasicBlock(nn.Layer):
 
         return out
 
-
+#创建Bottleneck模块
 class Bottleneck(nn.Layer):
     expansion = 4
 
@@ -53,7 +53,7 @@ class Bottleneck(nn.Layer):
         self.bn2 = nn.BatchNorm2D(planes)
         self.conv3 = nn.Conv2D(planes, planes * 4, kernel_size=1, bias=False)
         self.bn3 = nn.BatchNorm2D(planes * 4)
-        self.relu = nn.ReLU(inplace=True)
+        self.relu = nn.ReLU()
         self.downsample = downsample
         self.stride = stride
 
@@ -79,7 +79,7 @@ class Bottleneck(nn.Layer):
 
         return out
 
-
+#实现BBoxTransform
 class BBoxTransform(nn.Layer):
 
     def __init__(self, mean=None, std=None):
@@ -126,7 +126,7 @@ class BBoxTransform(nn.Layer):
 
         return pred_boxes
 
-
+#实现ClipBoxes
 class ClipBoxes(nn.Layer):
 
     def __init__(self, width=None, height=None):
