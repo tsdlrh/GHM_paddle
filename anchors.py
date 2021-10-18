@@ -2,11 +2,11 @@ import numpy as np
 import paddle
 import paddle.nn as nn
 
-
+#定义Anchors类，实现Anchor_head的相关功能
 class Anchors(nn.Layer):
+    #初始化
     def __init__(self, pyramid_levels=None, strides=None, sizes=None, ratios=None, scales=None):
         super(Anchors, self).__init__()
-
         if pyramid_levels is None:
             self.pyramid_levels = [3, 4, 5, 6, 7]
         if strides is None:
@@ -17,7 +17,7 @@ class Anchors(nn.Layer):
             self.ratios = np.array([0.5, 1, 2])
         if scales is None:
             self.scales = np.array([2 ** 0, 2 ** (1.0 / 3.0), 2 ** (2.0 / 3.0)])
-
+   #前向传播
     def forward(self, image):
 
         image_shape = image.shape[2:]
@@ -39,8 +39,9 @@ class Anchors(nn.Layer):
 
 def generate_anchors(base_size=16, ratios=None, scales=None):
     """
-    Generate anchor (reference) windows by enumerating aspect ratios X
-    scales w.r.t. a reference window.
+   Anchor生成器：
+   input: base_size,ratios,scales
+   output: anchors
     """
 
     if ratios is None:
@@ -72,10 +73,9 @@ def generate_anchors(base_size=16, ratios=None, scales=None):
 
 
 def compute_shape(image_shape, pyramid_levels):
-    """Compute shapes based on pyramid levels.
-    :param image_shape:
-    :param pyramid_levels:
-    :return:
+    """
+    inputs: image_shape,pyramid_levels
+    outputs:image_shapes
     """
     image_shape = np.array(image_shape[:2])
     image_shapes = [(image_shape + 2 ** x - 1) // (2 ** x) for x in pyramid_levels]
@@ -92,8 +92,7 @@ def anchors_for_shape(
         shapes_callback=None,
 ):
     image_shapes = compute_shape(image_shape, pyramid_levels)
-
-    # compute anchors over all pyramid levels
+    
     all_anchors = np.zeros((0, 4))
     for idx, p in enumerate(pyramid_levels):
         anchors = generate_anchors(base_size=sizes[idx], ratios=ratios, scales=scales)
@@ -104,6 +103,10 @@ def anchors_for_shape(
 
 
 def shift(shape, stride, anchors):
+    """
+    inputs: shape,stride,anchors
+    outputs:all_anchors
+    """
     shift_x = (np.arange(0, shape[1]) + 0.5) * stride
     shift_y = (np.arange(0, shape[0]) + 0.5) * stride
 
@@ -114,10 +117,6 @@ def shift(shape, stride, anchors):
         shift_x.ravel(), shift_y.ravel()
     )).transpose()
 
-    # add A anchors (1, A, 4) to
-    # cell K shifts (K, 1, 4) to get
-    # shift anchors (K, A, 4)
-    # reshape to (K*A, 4) shifted anchors
     A = anchors.shape[0]
     K = shifts.shape[0]
     all_anchors = (anchors.reshape((1, A, 4)) + shifts.reshape((1, K, 4)).transpose((1, 0, 2)))
